@@ -1,4 +1,4 @@
-import { Bot, InputFile } from "grammy";
+import { Bot, InputFile, InputMediaBuilder } from "grammy";
 import path from "path";
 import { API_TOKEN, DOWNLOAD_FOLDER } from "../const";
 import { Comunication } from "../models/comunication";
@@ -9,17 +9,13 @@ export class TelegramClient {
     this.bot = new Bot(API_TOKEN);
   }
   async sendComunication(chatId: number, communication: Comunication) {
-    for (let index = 0; index < communication.filenames.length; index++) {
-      const filename = communication.filenames[index];
-      const downloadPath = path.resolve(DOWNLOAD_FOLDER);
-      await this.bot.api.sendDocument(
-        chatId,
-        new InputFile(`${downloadPath}/${filename}`),
-        {
-          caption: communication.title,
-        }
-      );
-    }
+    const downloadPath = path.resolve(DOWNLOAD_FOLDER);
+    const media = communication.filenames.map((filename) =>
+      InputMediaBuilder.document(new InputFile(`${downloadPath}/${filename}`))
+    );
+    await this.bot.api.sendMediaGroup(chatId, media, {
+      caption: communication.title,
+    });
   }
 
   async sendMessage(chatId: number, textContent: string) {

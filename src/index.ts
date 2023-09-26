@@ -117,9 +117,9 @@ async function sendComunications(comunications: Comunication[]) {
   for (let index = 0; index < comunications.length; index++) {
     const comunication = comunications[index];
     await client.sendComunication(CHAT_ID, comunication);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 }
-
 async function deleteDownlodedFiles(comunications: Comunication[]) {
 
   for (let index = 0; index < comunications.length; index++) {
