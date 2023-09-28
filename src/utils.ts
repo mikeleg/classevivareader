@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { DOWNLOAD_FOLDER } from "./const";
 import { Comunication } from "./models/comunication";
+import { Student } from "./models/student";
 
 export class Utils {
   static async deleteDownlodedFiles(comunications: Comunication[]) {
@@ -20,5 +21,12 @@ export class Utils {
         });
       }
     }
+  }
+  static convertProcessArgsToStudent(args:any[]) {
+    return {
+      utente: args[2],
+      password: args[3],
+      nome: args[4],
+    } as Student;
   }
 }

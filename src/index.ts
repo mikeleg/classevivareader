@@ -1,9 +1,12 @@
+import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import * as puppeteer from "puppeteer-core";
 import { TelegramClient } from "./client/telegram";
 import { BRWOSER_PATH, CHAT_ID, DOWNLOAD_FOLDER } from "./const";
 import { Comunication } from "./models/comunication";
+import { Student } from "./models/student";
+import { Utils } from "./utils";
 
 const main = async () => {
   const browser = await puppeteer.launch({
@@ -18,10 +21,17 @@ const main = async () => {
     behavior: "allow",
     downloadPath: path.resolve(DOWNLOAD_FOLDER),
   });
-  page = await login(page, process.argv[2], process.argv[3]);
+  const studentCredentials: Student = Utils.convertProcessArgsToStudent(
+    process.argv
+  );
+  page = await login(
+    page,
+    studentCredentials.utente,
+    studentCredentials.password
+  );
   const comunications = await retriveComunications(page, "#box_row_to_read tr");
   await browser.close();
-  await sendComunications(comunications);
+  await sendComunications(comunications, studentCredentials);
   await deleteDownlodedFiles(comunications);
 };
 async function login(page: puppeteer.Page, username: string, password: string) {
@@ -42,7 +52,10 @@ async function login(page: puppeteer.Page, username: string, password: string) {
   );
   return page;
 }
-async function retriveComunications(page: puppeteer.Page,tableSelector:string) {
+async function retriveComunications(
+  page: puppeteer.Page,
+  tableSelector: string
+) {
   const rows = await page.$$(tableSelector);
   let comunications: Comunication[] = [];
 
@@ -112,16 +125,18 @@ async function retriveComunications(page: puppeteer.Page,tableSelector:string) {
 
   return comunications;
 }
-async function sendComunications(comunications: Comunication[]) {
+async function sendComunications(
+  comunications: Comunication[],
+  student: Student
+) {
   const client: TelegramClient = new TelegramClient();
   for (let index = 0; index < comunications.length; index++) {
     const comunication = comunications[index];
-    await client.sendComunication(CHAT_ID, comunication);
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await client.sendComunication(CHAT_ID, comunication, student);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   }
 }
 async function deleteDownlodedFiles(comunications: Comunication[]) {
-
   for (let index = 0; index < comunications.length; index++) {
     const comuncation = comunications[index];
 
