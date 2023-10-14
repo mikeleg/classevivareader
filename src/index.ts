@@ -1,29 +1,33 @@
 import "dotenv/config";
-import fs from "fs";
 import path from "path";
 import * as puppeteer from "puppeteer-core";
-import { TelegramClient } from "./client/telegram";
-import { BRWOSER_PATH, CHAT_ID, DOWNLOAD_FOLDER } from "./const";
-import { Comunication } from "./models/comunication";
+import { DOWNLOAD_FOLDER } from "./const";
+import { Comunication, FileComunication } from "./models/comunication";
 import { Student } from "./models/student";
-import { Utils } from "./utils";
+import { PuppeteerUtils, Utils } from "./utils";
 
 const main = async () => {
-  const browser = await puppeteer.launch({
-    headless: false,
-    args: ["--no-sandbox"],
-    executablePath: BRWOSER_PATH,
-    slowMo: 80,
-  });
+  const browser = await PuppeteerUtils.CreateBrowser();
   let page = await browser.newPage();
-  const client = await page.target().createCDPSession();
-  await client.send("Page.setDownloadBehavior", {
-    behavior: "allow",
-    downloadPath: path.resolve(DOWNLOAD_FOLDER),
-  });
+
   const studentCredentials: Student = Utils.convertProcessArgsToStudent(
     process.argv
   );
+  const client = await page.target().createCDPSession();
+  await client.send("Page.setDownloadBehavior", {
+    behavior: "allow",
+    downloadPath: `${path.resolve(DOWNLOAD_FOLDER)}/${
+      studentCredentials.nome
+    }}`,
+  });
+  await page.setRequestInterception(true);
+  page.on("request", (request) => {
+    if (["image", "fonts"].indexOf(request.resourceType()) !== -1) {
+      request.abort();
+    } else {
+      request.continue();
+    }
+  });
   page = await login(
     page,
     studentCredentials.utente,
@@ -31,8 +35,6 @@ const main = async () => {
   );
   const comunications = await retriveComunications(page, "#box_row_to_read tr");
   await browser.close();
-  await sendComunications(comunications, studentCredentials);
-  await deleteDownlodedFiles(comunications);
 };
 async function login(page: puppeteer.Page, username: string, password: string) {
   await page.goto("https://web.spaggiari.eu/home/app/default/login.php", {
@@ -83,18 +85,26 @@ async function retriveComunications(
         return ids !== null ? ids : [];
       }
     );
-    const filenames: string[] = await page.$$eval("a.dwl_allegato", (el) => {
-      const names = el.map((el) => {
-        let filename = el
-          .getAttribute("aria-label")
-          .replace(/(Download )/gm, "");
-        filename = filename.replace(/\s/gi, "_");
-        filename = filename.replace("Download", "");
-
-        return filename;
-      });
-      return names !== null ? names : [];
-    });
+    const filenames: FileComunication[] = await page.$$eval(
+      "a.dwl_allegato",
+      (el) => {
+        const names = el.map((el) => {
+          let filename = el
+            .getAttribute("aria-label")
+            .replace(/(Download )/gm, "");
+          filename = filename.replace(/\s/gi, "_");
+          filename = filename.replace("Download", "");
+          let filenameClean = filename
+            .toLocaleLowerCase()
+            .replace(/[^a-zA-Z0-9 ]|(pdf)/gm, "");
+          return {
+            filename: filename,
+            filenameClean: filenameClean,
+          } as FileComunication;
+        });
+        return names !== null ? names : [];
+      }
+    );
 
     comunications.push({
       title: title,
@@ -124,34 +134,6 @@ async function retriveComunications(
   }
 
   return comunications;
-}
-async function sendComunications(
-  comunications: Comunication[],
-  student: Student
-) {
-  const client: TelegramClient = new TelegramClient();
-  for (let index = 0; index < comunications.length; index++) {
-    const comunication = comunications[index];
-    await client.sendComunication(CHAT_ID, comunication, student);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-  }
-}
-async function deleteDownlodedFiles(comunications: Comunication[]) {
-  for (let index = 0; index < comunications.length; index++) {
-    const comuncation = comunications[index];
-
-    for (let index = 0; index < comuncation.filenames.length; index++) {
-      const filename = comuncation.filenames[index];
-      const downloadPath = path.resolve(DOWNLOAD_FOLDER);
-      const filePath = `${downloadPath}/${filename}`;
-      await fs.unlink(filePath, (err) => {
-        if (err) {
-          console.error(err);
-          return;
-        }
-      });
-    }
-  }
 }
 
 main();

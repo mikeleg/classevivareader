@@ -3,7 +3,6 @@ import path from "path";
 import { API_TOKEN, DOWNLOAD_FOLDER } from "../const";
 import { Comunication } from "../models/comunication";
 import { Student } from "../models/student";
-
 export class TelegramClient {
   private bot;
   constructor() {
@@ -15,11 +14,13 @@ export class TelegramClient {
     student: Student
   ) {
     const downloadPath = path.resolve(DOWNLOAD_FOLDER);
-    const media = communication.filenames.map((filename) =>
-      InputMediaBuilder.document(new InputFile(`${downloadPath}/${filename}`))
+    const media = communication.filenames.map((_file) =>
+      InputMediaBuilder.document(
+        new InputFile(`${downloadPath}/${_file.filenameDownload}`)
+      )
     );
     await this.bot.api.sendMediaGroup(chatId, media, {
-      caption: `[${student.nome}] ${communication.title}`,
+      caption: `${communication.title}`,
     });
   }
 
