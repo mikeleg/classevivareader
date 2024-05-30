@@ -1,8 +1,9 @@
 export interface Comunication {
   title: string;
-  comId: string;
-  allegatoIds: string[];
-  filenames: FileComunication[];
+  date: string;
+  comId: string  | '';
+  allegatoIds: string[] | [];
+  filenames: FileComunication[] | [];
 }
 
 export interface FileComunication {
